@@ -66,25 +66,18 @@ Receives the automated case: title, description, severity, MITRE technique
 
 ## What I learned
 
-**Enrichment is not triage.** A VirusTotal detection ratio is a data point, not
-a verdict — a handful of low-reputation engines flagging a file is noise as
-often as it's signal. Building the pipeline made the boundary between what
-automation can decide and what still needs an analyst much sharper for me than
-reading about it did.
+- How SIEMs and SOARs share structured alert data
+- Designing scalable, modular SOAR playbooks
+- Implementing automated threat-intelligence enrichment
+- Mapping detections to MITRE ATT&CK
+- Reducing alert fatigue with rule tuning
+- Real-world IR workflow: detect → enrich → investigate → contain
 
-**Rate limits shape the design.** The VirusTotal public API caps lookups per
-minute, so a naive "enrich every indicator in every alert" workflow falls over
-under any realistic volume. Deduplication and caching turn out to matter more
-than adding a second enrichment source.
-
-**Structured alert data is the whole integration.** SIEM and SOAR only compose
-cleanly because the alert carries a predictable schema. Most of the actual
-build time went into field mapping, not into the interesting logic.
-
-**Rule tuning is where alert fatigue is won.** Wazuh's default ruleset produced
-far more noise than signal on a normal Windows workstation; narrowing to the
-events that carry detection value is the difference between a usable pipeline
-and one an analyst mutes.
+> **Fill this in.** These are your original bullets. They're accurate but
+> generic — they'd fit any SOAR lab. The version that survives an interview
+> names one specific thing: a field mapping that broke, an enrichment result
+> that was misleading, a workflow step you had to rebuild. Replace these with
+> what actually happened and delete this note.
 
 ---
 
@@ -103,12 +96,10 @@ Based on the attack path exercised here:
 
 ## Limitations
 
-Single Windows endpoint, no domain controller, no network segmentation. One
-enrichment source. The workflow has no retry or backoff handling — a failed
-VirusTotal call drops the enrichment silently, which is the first thing I'd
-fix. Wazuh rules are tuned against one machine's baseline and would need
-rework against enterprise volume. Response is detect-and-document only; no
-containment actions are wired up.
+Single Windows endpoint lab. One enrichment source (VirusTotal). Wazuh rules
+are tuned against one machine's baseline and would need rework against
+enterprise log volume. Response is detect-and-document only — the containment
+actions listed under Future improvements are not implemented.
 
 ---
 
