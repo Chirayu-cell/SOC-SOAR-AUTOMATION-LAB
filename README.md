@@ -1,166 +1,138 @@
-🔥 SOC + SOAR Automation Lab
-End-to-End Automated Incident Detection, Enrichment & Case Management
+# SOC + SOAR Automation Lab
 
-Stack: Wazuh (SIEM) • Shuffle (SOAR) • VirusTotal • TheHive • Windows 10 + Sysmon
+**End-to-end automated detection, enrichment and case management**
 
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+**Stack:** Wazuh (SIEM) · Shuffle (SOAR) · VirusTotal · TheHive · Windows 10 + Sysmon
 
-📌 Overview
+---
 
-This project is a full enterprise-style SOC + SOAR pipeline, built completely from scratch.
-It simulates a real-world detection and automated response workflow used by Security Operations Centers.
+## Overview
 
-The environment detects credential theft attempts (Mimikatz), enriches the alert using VirusTotal, and automatically creates a case inside TheHive for further investigation — all without analyst involvement.
+A full SOC + SOAR pipeline built from scratch in a homelab, modelled on the
+detection-and-response workflow of a real Security Operations Center.
 
-This project showcases key skills in:
+The environment detects a credential theft attempt (Mimikatz), enriches the
+alert against VirusTotal, and automatically opens a case in TheHive with
+observables and MITRE mapping attached — with no analyst in the loop.
 
-Detection engineering
+**What it covers:** detection engineering · automation orchestration · threat
+intelligence enrichment · incident response workflow design · SIEM + SOAR +
+case management integration.
 
-Automation orchestration
+![SOAR workflow](screenshots/SOAR1.jpg)
 
-Threat intelligence enrichment
+---
 
-Incident response workflow design
+## Architecture
 
-SIEM + SOAR + Case Management integration
+### Wazuh — SIEM
 
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Collects telemetry from the Windows agent: Sysmon events, Security logs,
+process creation, and command-line arguments. Fires an alert when Mimikatz
+execution is detected.
 
-🏆 Key Achievements
+### Shuffle — SOAR
 
-✔ Reduced manual triage by ~80% using fully automated SOAR playbooks
-✔ Integrated SIEM + SOAR + Threat Intel + Case Management
-✔ Automated alert enrichment using VirusTotal
-✔ Created structured cases in TheHive for analyst workflows
-✔ Fine-tuned Wazuh rules to remove noise and improve detection fidelity
-✔ Simulated real-world credential theft attack using Mimikatz
-✔ Significantly improved MTTD & MTTR through automation
+The automation layer. Receives the Wazuh alert via webhook, extracts the file
+hash, queries VirusTotal, applies routing logic to classify the result, and
+creates a TheHive case with the full observable set.
 
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+### VirusTotal — enrichment
 
-🏗️ Architecture
-🔹 Wazuh (SIEM)
+File reputation and detection ratio for the binary executed on the endpoint.
 
-Collects telemetry from Windows agent:
+### TheHive — case management
 
-Sysmon logs
+Receives the automated case: title, description, severity, MITRE technique
+(T1003 — OS Credential Dumping), observables, and timestamps.
 
-Security logs
+![Enrichment and case creation](screenshots/SOAR3.jpg)
 
-Process creation
+---
 
-Suspicious command line usage
+## Attack simulated
 
-Triggers alert when Mimikatz is executed.
+**Credential theft — Mimikatz execution**
 
-🔹 Shuffle (SOAR)
+| Stage | What happens |
+|---|---|
+| Execution | Mimikatz runs on the Windows endpoint |
+| Telemetry | Sysmon Event ID 1 (process creation) with command line |
+| Detection | Wazuh rule matches on process name and signature |
+| Enrichment | Shuffle queries VirusTotal for the file hash |
+| Case | TheHive case opened, mapped to T1003 — OS Credential Dumping |
 
-Automates the entire workflow:
+---
 
-Receives Wazuh alert via webhook
+## What I learned
 
-Extracts file hash
+**Enrichment is not triage.** A VirusTotal detection ratio is a data point, not
+a verdict — a handful of low-reputation engines flagging a file is noise as
+often as it's signal. Building the pipeline made the boundary between what
+automation can decide and what still needs an analyst much sharper for me than
+reading about it did.
 
-Queries VirusTotal API
+**Rate limits shape the design.** The VirusTotal public API caps lookups per
+minute, so a naive "enrich every indicator in every alert" workflow falls over
+under any realistic volume. Deduplication and caching turn out to matter more
+than adding a second enrichment source.
 
-Applies logic to determine malicious/benign
+**Structured alert data is the whole integration.** SIEM and SOAR only compose
+cleanly because the alert carries a predictable schema. Most of the actual
+build time went into field mapping, not into the interesting logic.
 
-Creates a case in TheHive with full observable details
+**Rule tuning is where alert fatigue is won.** Wazuh's default ruleset produced
+far more noise than signal on a normal Windows workstation; narrowing to the
+events that carry detection value is the difference between a usable pipeline
+and one an analyst mutes.
 
-🔹 VirusTotal
+---
 
-Provides threat intelligence for the file executed on the endpoint.
+## Defensive recommendations
 
-🔹 TheHive
+Based on the attack path exercised here:
 
-Acts as the central case management platform.
-Automatically populated with:
+- Restrict LSASS access — Credential Guard, RunAsPPL
+- EDR protections specifically targeting credential dumping
+- Monitor high-value Event IDs: 4624 (logon), 4672 (special privileges assigned), 4688 (process creation)
+- Application control via AppLocker or WDAC
+- MFA and least privilege
+- Regular patch cycle for the OS and security subsystems
 
-Title
+---
 
-Description
+## Limitations
 
-Severity
+Single Windows endpoint, no domain controller, no network segmentation. One
+enrichment source. The workflow has no retry or backoff handling — a failed
+VirusTotal call drops the enrichment silently, which is the first thing I'd
+fix. Wazuh rules are tuned against one machine's baseline and would need
+rework against enterprise volume. Response is detect-and-document only; no
+containment actions are wired up.
 
-TTP mapping (ex: T1003 — Credential Dumping)
+---
 
-Observables
+## Future improvements
 
-Timestamps
+- Cortex analyzers for deeper enrichment
+- MISP threat feed ingestion
+- Containment actions — disable user, block IP, isolate host
+- Sigma → Wazuh rule generation pipeline
 
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---
 
-🧪 Attack Simulated
-Credential Theft Attempt — Mimikatz Execution
+## Repo contents
 
-Triggers Sysmon Event ID 1 (process creation)
+```
+├── configs/
+│   ├── shuffle-workflow.json    # Shuffle workflow export
+│   ├── wazuh-sample-alert.json  # Alert that triggers the pipeline
+│   └── virustotal-request.json  # Enrichment request body
+├── docs/
+│   ├── methodology.md           # How the lab was built, in order
+│   ├── soar-logic.md            # Routing and classification logic
+│   └── prevention.md            # Defensive controls in depth
+└── screenshots/
+```
 
-Wazuh rule detects suspicious process name & signature
-
-Shuffle enriches with VirusTotal metadata
-
-TheHive automatically logs case with MITRE mapping:
-
-T1003 — OS Credential Dumping
-
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-💡 What I Learned
-
-How SIEMs and SOARs share structured alert data
-
-Designing scalable, modular SOAR playbooks
-
-Implementing automated threat-intelligence enrichment
-
-Mapping detections to MITRE ATT&CK
-
-Reducing alert fatigue with rule tuning
-
-Real-world IR workflow:
-Detect → Enrich → Investigate → Contain
-
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-🛡️ Defensive Recommendations (Based on Attack)
-
-Restrict LSASS access with Credential Guard / RunAsPPL
-
-EDR protections against credential dumping
-
-Monitor high-value Event IDs:
-
-4624 – Logon
-
-4672 – Special privileges assigned
-
-4688 – Process creation
-
-Application control (AppLocker / WDAC)
-
-MFA + Least Privilege
-
-Regular patch cycle for OS + security subsystems
-
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-🚀 Future Improvements
-
-Add Cortex analyzers for deeper enrichment
-
-Add MISP threat feed ingestion
-
-Expand workflows to include containment (disable user, block IP, isolate host)
-
-Add Sigma → Wazuh rule generation pipeline
-
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-✨ About This Project
-
-This project was built to gain real-world SOC experience:
-from intrusion detection → enrichment → automated response → case creation.
-
-It demonstrates deep hands-on ability with modern blue-team technologies and automated incident response engineering.
-
-If you like this project, feel free to ⭐ star the repository!
+© 2025 Chirayu Paliwal
