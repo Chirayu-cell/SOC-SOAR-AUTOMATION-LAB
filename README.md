@@ -73,12 +73,6 @@ Receives the automated case: title, description, severity, MITRE technique
 - Reducing alert fatigue with rule tuning
 - Real-world IR workflow: detect → enrich → investigate → contain
 
-> **Fill this in.** These are your original bullets. They're accurate but
-> generic — they'd fit any SOAR lab. The version that survives an interview
-> names one specific thing: a field mapping that broke, an enrichment result
-> that was misleading, a workflow step you had to rebuild. Replace these with
-> what actually happened and delete this note.
-
 ---
 
 ## Defensive recommendations
@@ -115,10 +109,6 @@ actions listed under Future improvements are not implemented.
 ## Repo contents
 
 ```
-├── configs/
-│   ├── shuffle-workflow.json    # Shuffle workflow export
-│   ├── wazuh-sample-alert.json  # Alert that triggers the pipeline
-│   └── virustotal-request.json  # Enrichment request body
 ├── docs/
 │   ├── methodology.md           # How the lab was built, in order
 │   ├── soar-logic.md            # Routing and classification logic
